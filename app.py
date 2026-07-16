@@ -4,6 +4,12 @@ from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from database.db import get_db, init_db, seed_db
+from database.queries import (
+    get_category_breakdown,
+    get_recent_transactions,
+    get_summary_stats,
+    get_user_by_id,
+)
 
 app = Flask(__name__)
 app.secret_key = "spendly-dev-secret-key"  # dev-only placeholder; replace with a config-driven secret later
@@ -112,35 +118,27 @@ def profile():
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
+    user_id = session["user_id"]
+
+    user_row = get_user_by_id(user_id)
+    name_parts = user_row["name"].split()
+    if len(name_parts) > 1:
+        initials = (name_parts[0][0] + name_parts[-1][0]).upper()
+    else:
+        initials = name_parts[0][:2].upper()
     user = {
-        "name": "Demo User",
-        "email": "demo@spendly.com",
-        "member_since": "March 2026",
-        "initials": "DU",
+        "name": user_row["name"],
+        "email": user_row["email"],
+        "member_since": user_row["member_since"],
+        "initials": initials,
     }
-    stats = {
-        "total_spent": 7180.00,
-        "transaction_count": 8,
-        "top_category": "Shopping",
-    }
-    transactions = [
-        {"date": "2026-07-12", "description": "Miscellaneous", "category": "Other", "amount": 200.00},
-        {"date": "2026-07-11", "description": "New shoes", "category": "Shopping", "amount": 2500.00},
-        {"date": "2026-07-10", "description": "Dinner with friends", "category": "Food", "amount": 600.00},
-        {"date": "2026-07-08", "description": "Movie tickets", "category": "Entertainment", "amount": 700.00},
-        {"date": "2026-07-07", "description": "Pharmacy", "category": "Health", "amount": 480.00},
-        {"date": "2026-07-05", "description": "Electricity bill", "category": "Bills", "amount": 2200.00},
-        {"date": "2026-07-03", "description": "Metro card recharge", "category": "Transport", "amount": 150.00},
-        {"date": "2026-07-02", "description": "Groceries", "category": "Food", "amount": 350.00},
-    ]
+
+    stats = get_summary_stats(user_id)
+    transactions = get_recent_transactions(user_id)
+
     categories = [
-        {"name": "Shopping", "amount": 2500.00, "percent": 35, "width": 35},
-        {"name": "Bills", "amount": 2200.00, "percent": 31, "width": 30},
-        {"name": "Entertainment", "amount": 700.00, "percent": 10, "width": 10},
-        {"name": "Food", "amount": 950.00, "percent": 13, "width": 15},
-        {"name": "Health", "amount": 480.00, "percent": 7, "width": 5},
-        {"name": "Transport", "amount": 150.00, "percent": 2, "width": 5},
-        {"name": "Other", "amount": 200.00, "percent": 2, "width": 5},
+        {**category, "width": round(category["pct"] / 5) * 5}
+        for category in get_category_breakdown(user_id)
     ]
 
     return render_template(
