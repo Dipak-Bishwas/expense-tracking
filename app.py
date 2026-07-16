@@ -1,4 +1,6 @@
+import calendar
 import sqlite3
+from datetime import date
 
 from flask import Flask, redirect, render_template, request, session, url_for
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -17,6 +19,47 @@ app.secret_key = "spendly-dev-secret-key"  # dev-only placeholder; replace with 
 with app.app_context():
     init_db()
     seed_db()
+
+
+RANGE_OPTIONS = [
+    ("this-month", "This month"),
+    ("last-month", "Last month"),
+    ("last-3-months", "Last 3 months"),
+    ("all-time", "All time"),
+]
+
+
+def _month_bounds(year, month):
+    last_day = calendar.monthrange(year, month)[1]
+    return date(year, month, 1), date(year, month, last_day)
+
+
+def resolve_date_range(range_key):
+    valid_keys = {key for key, _ in RANGE_OPTIONS}
+    if range_key not in valid_keys:
+        range_key = "this-month"
+
+    today = date.today()
+
+    if range_key == "all-time":
+        return range_key, None, None
+
+    if range_key == "last-month":
+        year, month = today.year, today.month - 1
+        if month == 0:
+            month, year = 12, year - 1
+        start, end = _month_bounds(year, month)
+    elif range_key == "last-3-months":
+        month, year = today.month - 2, today.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        start, _ = _month_bounds(year, month)
+        _, end = _month_bounds(today.year, today.month)
+    else:  # this-month
+        start, end = _month_bounds(today.year, today.month)
+
+    return range_key, start.isoformat(), end.isoformat()
 
 
 # ------------------------------------------------------------------ #
@@ -119,8 +162,13 @@ def profile():
         return redirect(url_for("login"))
 
     user_id = session["user_id"]
+    active_range, start_date, end_date = resolve_date_range(request.args.get("range"))
 
     user_row = get_user_by_id(user_id)
+    if user_row is None:
+        session.clear()
+        return redirect(url_for("login"))
+
     name_parts = user_row["name"].split()
     if len(name_parts) > 1:
         initials = (name_parts[0][0] + name_parts[-1][0]).upper()
@@ -133,12 +181,12 @@ def profile():
         "initials": initials,
     }
 
-    stats = get_summary_stats(user_id)
-    transactions = get_recent_transactions(user_id)
+    stats = get_summary_stats(user_id, start_date=start_date, end_date=end_date)
+    transactions = get_recent_transactions(user_id, start_date=start_date, end_date=end_date)
 
     categories = [
         {**category, "width": round(category["pct"] / 5) * 5}
-        for category in get_category_breakdown(user_id)
+        for category in get_category_breakdown(user_id, start_date=start_date, end_date=end_date)
     ]
 
     return render_template(
@@ -147,6 +195,8 @@ def profile():
         stats=stats,
         transactions=transactions,
         categories=categories,
+        active_range=active_range,
+        range_options=RANGE_OPTIONS,
     )
 
 

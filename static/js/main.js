@@ -33,3 +33,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (event.key === 'Escape' && !modal.hidden) closeModal();
     });
 });
+
+document.addEventListener('DOMContentLoaded', function () {
+    var filterForm = document.getElementById('range-filter-form');
+    var filterSelect = document.getElementById('range');
+
+    if (!filterForm || !filterSelect) return;
+
+    filterSelect.addEventListener('change', function () {
+        filterForm.submit();
+    });
+});

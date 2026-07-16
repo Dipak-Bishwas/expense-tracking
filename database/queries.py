@@ -27,12 +27,18 @@ def get_user_by_id(user_id):
     }
 
 
-def get_summary_stats(user_id):
+def get_summary_stats(user_id, start_date=None, end_date=None):
     conn = get_db()
     try:
-        rows = conn.execute(
-            "SELECT category, amount FROM expenses WHERE user_id = ?", (user_id,)
-        ).fetchall()
+        if start_date and end_date:
+            rows = conn.execute(
+                "SELECT category, amount FROM expenses WHERE user_id = ? AND date BETWEEN ? AND ?",
+                (user_id, start_date, end_date),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT category, amount FROM expenses WHERE user_id = ?", (user_id,)
+            ).fetchall()
     finally:
         conn.close()
 
@@ -55,19 +61,31 @@ def get_summary_stats(user_id):
     }
 
 
-def get_recent_transactions(user_id, limit=10):
+def get_recent_transactions(user_id, limit=10, start_date=None, end_date=None):
     conn = get_db()
     try:
-        rows = conn.execute(
-            """
-            SELECT date, description, category, amount
-            FROM expenses
-            WHERE user_id = ?
-            ORDER BY date DESC, id DESC
-            LIMIT ?
-            """,
-            (user_id, limit),
-        ).fetchall()
+        if start_date and end_date:
+            rows = conn.execute(
+                """
+                SELECT date, description, category, amount
+                FROM expenses
+                WHERE user_id = ? AND date BETWEEN ? AND ?
+                ORDER BY date DESC, id DESC
+                LIMIT ?
+                """,
+                (user_id, start_date, end_date, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT date, description, category, amount
+                FROM expenses
+                WHERE user_id = ?
+                ORDER BY date DESC, id DESC
+                LIMIT ?
+                """,
+                (user_id, limit),
+            ).fetchall()
     finally:
         conn.close()
 
@@ -82,19 +100,31 @@ def get_recent_transactions(user_id, limit=10):
     ]
 
 
-def get_category_breakdown(user_id):
+def get_category_breakdown(user_id, start_date=None, end_date=None):
     conn = get_db()
     try:
-        rows = conn.execute(
-            """
-            SELECT category, SUM(amount) as total
-            FROM expenses
-            WHERE user_id = ?
-            GROUP BY category
-            ORDER BY total DESC
-            """,
-            (user_id,),
-        ).fetchall()
+        if start_date and end_date:
+            rows = conn.execute(
+                """
+                SELECT category, SUM(amount) as total
+                FROM expenses
+                WHERE user_id = ? AND date BETWEEN ? AND ?
+                GROUP BY category
+                ORDER BY total DESC
+                """,
+                (user_id, start_date, end_date),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT category, SUM(amount) as total
+                FROM expenses
+                WHERE user_id = ?
+                GROUP BY category
+                ORDER BY total DESC
+                """,
+                (user_id,),
+            ).fetchall()
     finally:
         conn.close()
 

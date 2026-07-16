@@ -15,6 +15,18 @@
             </div>
         </div>
 
+        <div class="profile-card filter-bar-card">
+            <form method="get" class="filter-bar" id="range-filter-form">
+                <label for="range" class="filter-label">Showing</label>
+                <select name="range" id="range" class="filter-select">
+                    {% for key, label in range_options %}
+                    <option value="{{ key }}" {% if key == active_range %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn-primary filter-apply">Apply</button>
+            </form>
+        </div>
+
         <div class="profile-stats-grid">
             <div class="stat-card">
                 <span class="stat-label">Total spent</span>
@@ -43,6 +55,7 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% if transactions %}
                         {% for tx in transactions %}
                         <tr>
                             <td>{{ tx.date }}</td>
@@ -51,6 +64,11 @@
                             <td>&#8377;{{ "{:,.2f}".format(tx.amount) }}</td>
                         </tr>
                         {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="profile-empty-row">No transactions in this period.</td>
+                        </tr>
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -58,6 +76,7 @@
 
         <div class="profile-card">
             <h2>Category breakdown</h2>
+            {% if categories %}
             {% for cat in categories %}
             <div class="progress-row">
                 <span class="progress-label">{{ cat.name }}</span>
@@ -66,6 +85,9 @@
                 </div>
             </div>
             {% endfor %}
+            {% else %}
+            <p class="profile-empty-message">No expenses in this period.</p>
+            {% endif %}
         </div>
 
     </div>
